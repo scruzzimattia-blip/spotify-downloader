@@ -1,0 +1,127 @@
+# Spotify Downloader
+
+Web-basierter Downloader für Spotify-Tracks, -Alben, -Artists und -Playlists.
+Angetrieben von [`spotdl`](https://github.com/spotDL/spotify-downloader) und
+serviert über FastAPI mit einer modernen, dunklen Oberfläche.
+
+> Hinweis: Die eigentlichen Audio-Streams werden von `spotdl` auf YouTube gesucht
+> und heruntergeladen. Spotify dient nur als Metadatenquelle.
+> Achte auf die Urheberrechte in deinem Land.
+
+## Features
+
+- Modernes Dark-Theme UI (Desktop & Mobile)
+- Unterstützt Tracks, Alben, Artists und Playlists
+- Asynchrone Job-Queue mit Live-Status, Log-Ausgabe und Fortschrittsanzeige
+- Mehrfach-Downloads werden automatisch als ZIP-Archiv gebündelt
+- REST-API für Automatisierung (`/api/downloads`)
+- Containerisiert mit `ffmpeg` als non-root-User
+- Gitea-Actions-Workflow zum automatischen Bauen und Pushen des Images
+
+## Schnellstart mit Docker Compose
+
+```bash
+docker compose up -d --build
+# UI öffnen: http://localhost:8000
+```
+
+Heruntergeladene Dateien landen im gemounteten Volume `./downloads`.
+
+## Nur Docker
+
+```bash
+docker build -t spotify-downloader .
+docker run -d \
+  --name spotify-downloader \
+  -p 8000:8000 \
+  -v "$(pwd)/downloads:/data/downloads" \
+  spotify-downloader
+```
+
+Oder das in Gitea gebaute Image direkt ziehen:
+
+```bash
+docker pull git.scruzzi.com/mattia/spotify-downloader:latest
+```
+
+## Lokale Entwicklung ohne Docker
+
+Voraussetzungen: Python 3.11+ und `ffmpeg` im `PATH`.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+## Konfiguration (Umgebungsvariablen)
+
+| Variable        | Default             | Beschreibung                              |
+|-----------------|---------------------|-------------------------------------------|
+| `PORT`          | `8000`              | HTTP-Port                                 |
+| `DOWNLOAD_DIR`  | `/data/downloads`   | Zielverzeichnis für Downloads (Container) |
+| `AUDIO_FORMAT`  | `mp3`               | `mp3`, `m4a`, `opus`, `ogg`, `flac`, `wav`|
+| `LOG_LEVEL`     | `INFO`              | Log-Level des FastAPI-Prozesses           |
+
+## REST-API
+
+| Methode | Pfad                                     | Zweck                                  |
+|---------|------------------------------------------|----------------------------------------|
+| `GET`   | `/api/health`                            | Health-Check                           |
+| `POST`  | `/api/downloads`                         | Neuen Download starten (`{ "url": … }`)|
+| `GET`   | `/api/downloads`                         | Alle Jobs auflisten                    |
+| `GET`   | `/api/downloads/{id}`                    | Status eines Jobs                      |
+| `DELETE`| `/api/downloads/{id}`                    | Job + Dateien löschen                  |
+| `GET`   | `/api/downloads/{id}/files/{filename}`   | Einzelne Datei herunterladen           |
+
+Beispiel:
+
+```bash
+curl -X POST http://localhost:8000/api/downloads \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"}'
+```
+
+## Gitea CI/CD
+
+Der Workflow unter `.gitea/workflows/docker-build.yml` baut bei jedem Push auf
+`main` sowie bei Version-Tags (`v*`) automatisch ein Multi-Tag-Image und pusht
+es in die Gitea Container Registry.
+
+Benötigte Einstellungen im Gitea-Repo:
+
+1. **Actions aktivieren:** Repository-Settings → *Enable Repository Actions*.
+2. **Runner registrieren:** Mindestens ein Gitea Actions Runner mit Docker
+   muss gegen das Repo/den Owner registriert sein.
+3. **Packages-Berechtigung:** Das Repo-Token (`GITEA_TOKEN`) braucht
+   `write:package`-Rechte. Alternativ kann ein eigener Token als Secret
+   `REGISTRY_TOKEN` hinterlegt werden.
+4. **Registry-Host (optional):** Als Repository-Variable `REGISTRY` kann ein
+   abweichender Host gesetzt werden (Default: `git.scruzzi.com`).
+
+Erzeugte Tags:
+
+- `latest` (nur auf `main`)
+- `main` (Branch)
+- `sha-<kurz-sha>`
+- `v1.2.3` (bei passenden Git-Tags)
+
+## Projektstruktur
+
+```
+.
+├── app/
+│   ├── downloader.py      # Async Job-Manager um spotdl
+│   ├── main.py            # FastAPI-Routen
+│   ├── static/            # CSS + JS
+│   └── templates/         # index.html
+├── .gitea/workflows/      # CI für Docker-Build & Push
+├── Dockerfile
+├── docker-compose.yml
+└── requirements.txt
+```
+
+## Lizenz
+
+Nur zum privaten Gebrauch. Kein Support für kommerzielle Nutzung.
