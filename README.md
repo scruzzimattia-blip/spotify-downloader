@@ -172,25 +172,19 @@ Benötigte Einstellungen im Gitea-Repo:
 1. **Actions aktivieren:** Repository-Settings → *Enable Repository Actions*.
 2. **Runner registrieren:** Mindestens ein Gitea Actions Runner mit Docker
    muss gegen das Repo/den Owner registriert sein.
-3. **Registry-Login (wichtig):** Wenn der Schritt *Log in to Gitea Container
-   Registry* mit `Get "https://…/v2/": unauthorized` abbricht, liegt es fast
-   immer am Token — **nicht** am Workflow.
+3. **Registry-Login (wichtig):** Zwei Repo-Secrets anlegen:
 
-   Der automatische `GITEA_TOKEN` aus dem Workflow hat auf vielen Gitea-Versionen
-   **keine** `write:package`-Berechtigung. Dann lehnt die Registry jeden Push ab.
+   | Secret | Inhalt |
+   |--------|--------|
+   | **`REGISTRY_USERNAME`** | Dein Gitea-Benutzername (exakt, inkl. Groß-/Kleinschreibung) |
+   | **`REGISTRY_PASSWORD`** | Personal Access Token mit **`read:package`** und **`write:package`** |
 
-   **Empfohlen:** eigenen Personal Access Token anlegen und als Repo-Secret
-   speichern:
+   Token erzeugen: Gitea → Profil → **Settings** → **Applications** →
+   **Generate New Token**, passende Scopes wählen, den String nur als
+   **`REGISTRY_PASSWORD`** speichern — nicht ins Repo committen.
 
-   - Gitea → Profil-Avatar → **Settings** → **Applications** →
-     **Generate New Token**
-   - Scopes mindestens: **`read:package`** und **`write:package`**
-   - Optional zusätzlich: `read:user` (hilft bei manchen Setups)
-   - Im Repo: **Settings** → **Secrets** → Secret **`REGISTRY_TOKEN`**
-     mit dem Token-Wert anlegen
-
-   Optional: Secret **`REGISTRY_USERNAME`** auf deinen exakten Gitea-Login setzen,
-   falls dieser von `github.actor` abweicht (Groß-/Kleinschreibung).
+   Wenn weiterhin `Get "https://…/v2/": unauthorized` erscheint, stimmen
+   Benutzername/Token/Registry-Host nicht — nicht der Workflow.
 
 4. **Registry-Host (optional):** Als Repository-Variable `REGISTRY` nur den
    Hostnamen setzen (z. B. `git.scruzzi.com`), **ohne** `https://` und ohne
@@ -208,17 +202,15 @@ echo 'DEIN_PAT' | docker login git.scruzzi.com -u DEIN_GITEA_USER --password-std
 Wenn das lokal scheitert, muss zuerst der Token oder die Server-Konfiguration
 (Packages/Registry aktiviert?) gefixt werden — nicht der Workflow.
 
-Der CI-Workflow loggt mit demselben Muster (`docker login … --password-stdin`).
-Ohne gesetztes Secret **`REGISTRY_TOKEN`** bricht der Job mit einer klaren
-Fehlermeldung ab (Fallback: `GITEA_TOKEN`, falls deine Gitea-Version das
-mit Package-Rechten ausliefert — oft aber nicht).
+Der CI-Workflow nutzt dieselben beiden Werte mit `docker login … --password-stdin`.
+Ohne **`REGISTRY_USERNAME`** oder **`REGISTRY_PASSWORD`** bricht der Job mit einer
+klaren Fehlermeldung ab.
 
-Erzeugte Tags:
+Erzeugte Tags (Beispiel `git.scruzzi.com/mattia/spotify-downloader`):
 
-- `latest` (nur auf `main`)
-- `main` (Branch)
-- `sha-<kurz-sha>`
-- `v1.2.3` (bei passenden Git-Tags)
+- `YYYYMMDD-<kurz-sha>` (eindeutige Build-Version)
+- vollständiger **`github.sha`** als Tag
+- `latest` nur bei Push auf Branch **`main`**
 
 ## Projektstruktur
 

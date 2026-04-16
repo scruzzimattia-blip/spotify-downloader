@@ -51,26 +51,22 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Gitea: PAT mit read:package + write:package als REGISTRY_TOKEN.
-      # docker login --password-stdin ist auf manchen Runnern zuverlässiger
-      # als docker/login-action. Ohne gültiges Secret: weiterhin "unauthorized".
+      # Repo-Secrets: REGISTRY_USERNAME (Gitea-Login) + REGISTRY_PASSWORD (PAT mit
+      # read:package + write:package). docker login per stdin — kein Token im Prozesslisting.
       - name: Log in to container registry
         env:
           REGISTRY: ${{ env.REGISTRY }}
-          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
-          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
         run: |
           set -eu
-          USERNAME='${{ secrets.REGISTRY_USERNAME || github.actor }}'
-          TOKEN="${REGISTRY_TOKEN:-}"
-          if [ -z "${TOKEN}" ]; then
-            TOKEN="${GITEA_TOKEN:-}"
-          fi
-          if [ -z "${TOKEN}" ]; then
-            echo "::error::No REGISTRY_TOKEN (or GITEA_TOKEN) secret — cannot log in. Create a PAT with read:package + write:package."
+          USERNAME="${REGISTRY_USERNAME:-}"
+          PASSWORD="${REGISTRY_PASSWORD:-}"
+          if [ -z "${USERNAME}" ] || [ -z "${PASSWORD}" ]; then
+            echo "::error::Set repository secrets REGISTRY_USERNAME and REGISTRY_PASSWORD (password = PAT with read:package + write:package)."
             exit 1
           fi
-          echo "${TOKEN}" | docker login "${REGISTRY}" -u "${USERNAME}" --password-stdin
+          echo "${PASSWORD}" | docker login "${REGISTRY}" -u "${USERNAME}" --password-stdin
 
       - name: Build and push image
         uses: docker/build-push-action@v6
