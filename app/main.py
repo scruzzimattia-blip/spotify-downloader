@@ -34,6 +34,7 @@ SPOTIFY_CLIENT_SECRET = (
     or ""
 ).strip()
 YTDLP_COOKIES_FILE = os.environ.get("YTDLP_COOKIES_FILE", "").strip() or None
+AUDIO_SOURCES = os.environ.get("AUDIO_SOURCES", "soundcloud").strip()
 
 app = FastAPI(
     title="Spotify Downloader",
@@ -54,6 +55,7 @@ manager = DownloadManager(
     client_id=SPOTIFY_CLIENT_ID,
     client_secret=SPOTIFY_CLIENT_SECRET,
     cookies_file=YTDLP_COOKIES_FILE,
+    audio_sources=AUDIO_SOURCES,
 )
 
 
@@ -74,6 +76,7 @@ async def index(request: Request) -> HTMLResponse:
             "audio_format": AUDIO_FORMAT,
             "supported_formats": list(SUPPORTED_FORMATS),
             "has_credentials": manager.has_custom_credentials,
+            "audio_sources_label": ", ".join(manager.audio_sources),
         },
     )
 
@@ -89,6 +92,7 @@ async def config() -> dict:
         "audio_format": AUDIO_FORMAT,
         "supported_formats": list(SUPPORTED_FORMATS),
         "has_credentials": manager.has_custom_credentials,
+        "audio_sources": manager.audio_sources,
     }
 
 

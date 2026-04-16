@@ -12,6 +12,8 @@ services:
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
       YTDLP_COOKIES_FILE: ${YTDLP_COOKIES_FILE:-}
+      # soundcloud (Standard, kein YouTube) | soundcloud,youtube für Fallback
+      AUDIO_SOURCES: ${AUDIO_SOURCES:-soundcloud}
     volumes:
       - ./downloads:/data/downloads
       # Optional: YouTube-Cookies für yt-dlp, falls Bot-Detection zuschlaegt.

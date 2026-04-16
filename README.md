@@ -1,12 +1,12 @@
 # Spotify Downloader
 
 Web-basierter Downloader für Spotify-Tracks, -Alben, -Artists und -Playlists.
-Angetrieben von [`spotdl`](https://github.com/spotDL/spotify-downloader) und
-serviert über FastAPI mit einer modernen, dunklen Oberfläche.
+Serviert über FastAPI mit einer modernen, dunklen Oberfläche; Audio kommt per
+**yt-dlp** (Standard: **SoundCloud**).
 
-> Hinweis: Die eigentlichen Audio-Streams werden von `spotdl` auf YouTube gesucht
-> und heruntergeladen. Spotify dient nur als Metadatenquelle.
-> Achte auf die Urheberrechte in deinem Land.
+> Hinweis: Spotify liefert nur Metadaten. Die Audiodateien stammen von Drittanbietern
+> (Standard SoundCloud, optional YouTube). Urheberrecht und Nutzungsbedingungen
+> beachten.
 
 ## Features
 
@@ -32,10 +32,8 @@ docker compose up -d --build
 
 Heruntergeladene Dateien landen im gemounteten Volume `./downloads`.
 
-> **Wichtig:** Ohne eigene Spotify-API-Credentials landet spotdl in den
-> öffentlichen, geteilten Rate-Limits und quittiert schnell mit
-> `"Your application has reached a rate/request limit. Retry will occur
-> after: 86400 s"`. Das Setup dafür ist zwei Klicks und kostenlos – siehe
+> **Wichtig:** Ohne eigene Spotify-API-Credentials schlägt der Abruf der
+> Metadaten fehl oder wird stark limitiert. Das Setup ist kostenlos – siehe
 > nächster Abschnitt.
 
 ## Spotify API Credentials (empfohlen)
@@ -57,14 +55,29 @@ Heruntergeladene Dateien landen im gemounteten Volume `./downloads`.
 
 Solange die Werte leer sind, zeigt die UI oben ein orangenes Hinweis-Banner an.
 
-## YouTube Cookies (sehr empfohlen)
+## Audio-Quelle (Standard: SoundCloud, kein YouTube)
+
+Die App lädt die Audiodateien mit **yt-dlp**. Standard ist **`AUDIO_SOURCES=soundcloud`**
+— die Suche läuft über **SoundCloud** (kein YouTube). Dafür ist **yt-dlp ≥ 2026.3**
+nötig (ältere Versionen hatten einen kaputten SoundCloud-Extractor).
+
+Nicht jeder Spotify-Titel existiert auf SoundCloud. Optional kannst du YouTube
+als **zweite** Quelle aktivieren:
+
+```dotenv
+AUDIO_SOURCES=soundcloud,youtube
+```
+
+Dann brauchst du meist wieder `YTDLP_COOKIES_FILE` (siehe nächster Abschnitt).
+
+## YouTube Cookies (nur bei AUDIO_SOURCES=…,youtube)
 
 YouTube blockiert zunehmend nicht-authentifizierte Zugriffe mit der Fehlermeldung
 *"Sign in to confirm you're not a bot"*. Das ist keine App-eigene Limitierung,
 sondern betrifft alle yt-dlp-basierten Tools.
 
-**Abhilfe:** exportiere deine YouTube-Cookies im Netscape-Format und mounte sie
-in den Container.
+**Nur nötig, wenn du `youtube` in `AUDIO_SOURCES` verwendest.** Dann: YouTube-Cookies
+im Netscape-Format exportieren und in den Container mounten.
 
 1. Browser-Extension installieren:
    - Chrome/Edge: *Get cookies.txt LOCALLY*
@@ -126,7 +139,8 @@ uvicorn app.main:app --reload
 | `LOG_LEVEL`              | `INFO`              | Log-Level des FastAPI-Prozesses           |
 | `SPOTIFY_CLIENT_ID`      | –                   | Eigene Spotify-App Client-ID              |
 | `SPOTIFY_CLIENT_SECRET`  | –                   | Passend zum Client-ID                     |
-| `YTDLP_COOKIES_FILE`     | –                   | Pfad zu Netscape-Cookie-Datei (YouTube)   |
+| `YTDLP_COOKIES_FILE`     | –                   | Netscape-Cookies (nur bei `youtube` in Quellen) |
+| `AUDIO_SOURCES`          | `soundcloud`        | z. B. `soundcloud` oder `soundcloud,youtube` |
 
 ## REST-API
 

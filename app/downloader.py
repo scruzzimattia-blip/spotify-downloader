@@ -36,6 +36,51 @@ logger = logging.getLogger(__name__)
 
 SUPPORTED_FORMATS: tuple[str, ...] = ("mp3", "m4a", "opus", "flac", "wav")
 
+# Komma-getrennte Reihenfolge in AUDIO_SOURCES, z. B. "soundcloud" oder
+# "soundcloud,youtube". Standard ist nur SoundCloud (kein YouTube).
+KNOWN_AUDIO_SOURCES: tuple[str, ...] = ("soundcloud", "youtube")
+
+_YOUTUBE_STRATEGIES: tuple[tuple[str, str, dict], ...] = (
+    (
+        "YouTube (default)",
+        "ytsearch1",
+        {},
+    ),
+    (
+        "YouTube (mweb+tv_embedded)",
+        "ytsearch1",
+        {"youtube": {"player_client": ["mweb", "tv_embedded", "web"]}},
+    ),
+    (
+        "YouTube (android+ios)",
+        "ytsearch1",
+        {"youtube": {"player_client": ["android", "ios"]}},
+    ),
+)
+
+
+def parse_audio_sources(csv: str) -> list[str]:
+    raw = [p.strip().lower() for p in csv.split(",") if p.strip()]
+    if not raw:
+        return ["soundcloud"]
+    for s in raw:
+        if s not in KNOWN_AUDIO_SOURCES:
+            raise ValueError(
+                f"Unbekannte Audio-Quelle '{s}'. Erlaubt: "
+                + ", ".join(KNOWN_AUDIO_SOURCES)
+            )
+    return raw
+
+
+def build_search_strategies(source_order: list[str]) -> list[tuple[str, str, dict]]:
+    out: list[tuple[str, str, dict]] = []
+    for src in source_order:
+        if src == "soundcloud":
+            out.append(("SoundCloud", "scsearch1", {}))
+        elif src == "youtube":
+            out.extend(_YOUTUBE_STRATEGIES)
+    return out
+
 
 class JobStatus(str, Enum):
     QUEUED = "queued"
@@ -387,6 +432,7 @@ class DownloadManager:
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
         cookies_file: Optional[str] = None,
+        audio_sources: str = "soundcloud",
     ) -> None:
         self.base_dir = base_dir
         self.base_dir.mkdir(parents=True, exist_ok=True)
@@ -397,6 +443,16 @@ class DownloadManager:
         self.cookies_file = (
             str(cookies_path) if cookies_path and cookies_path.is_file() else None
         )
+        try:
+            self.audio_sources = parse_audio_sources(audio_sources)
+        except ValueError as exc:
+            logger.warning(
+                "Ungültige AUDIO_SOURCES %r: %s — fallback auf nur soundcloud",
+                audio_sources,
+                exc,
+            )
+            self.audio_sources = ["soundcloud"]
+        self._search_strategies = build_search_strategies(self.audio_sources)
         self.jobs: dict[str, DownloadJob] = {}
         self._lock = asyncio.Lock()
 
@@ -539,27 +595,6 @@ class DownloadManager:
         r"Sign in to confirm you[’']re not a bot", re.IGNORECASE
     )
 
-    # Such-Strategien: (Beschreibung, Such-Präfix, extractor_args).
-    # Werden der Reihe nach probiert, bis eine Strategie einen Treffer liefert.
-    # Wenn Cookies vorhanden sind, reicht meist schon die erste.
-    _SEARCH_STRATEGIES: list[tuple[str, str, dict]] = [
-        (
-            "YouTube (default)",
-            "ytsearch1",
-            {},
-        ),
-        (
-            "YouTube (mweb+tv_embedded)",
-            "ytsearch1",
-            {"youtube": {"player_client": ["mweb", "tv_embedded", "web"]}},
-        ),
-        (
-            "YouTube (android+ios)",
-            "ytsearch1",
-            {"youtube": {"player_client": ["android", "ios"]}},
-        ),
-    ]
-
     def _download_track(self, track: TrackRef, job: DownloadJob) -> str:
         assert job.output_dir is not None
         base = sanitize_filename(f"{track.artist} - {track.title}")
@@ -573,8 +608,15 @@ class DownloadManager:
 
         errors: list[str] = []
         bot_detection_hit = False
+        uses_youtube = "youtube" in self.audio_sources
 
-        for desc, prefix, extractor_args in self._SEARCH_STRATEGIES:
+        for desc, prefix, extractor_args in self._search_strategies:
+            if prefix == "ytsearch1":
+                qbody = f"{track.artist} {track.title} audio"
+            else:
+                qbody = f"{track.artist} {track.title}"
+            query = f"{prefix}:{qbody}"
+
             ydl_opts = {
                 "format": "bestaudio/best",
                 "outtmpl": outtmpl,
@@ -588,10 +630,8 @@ class DownloadManager:
                 "default_search": prefix,
                 "extractor_args": extractor_args,
             }
-            if self.cookies_file:
+            if self.cookies_file and prefix == "ytsearch1":
                 ydl_opts["cookiefile"] = self.cookies_file
-
-            query = f"{prefix}:{track.artist} {track.title} audio"
 
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -603,7 +643,7 @@ class DownloadManager:
                     logger.warning(
                         "Konnte Tags nicht schreiben für %s", target, exc_info=True
                     )
-                if desc != self._SEARCH_STRATEGIES[0][0]:
+                if desc != self._search_strategies[0][0]:
                     self._log(job, f"  -> via {desc}")
                 return target.name
             except Exception as exc:  # noqa: BLE001
@@ -618,11 +658,12 @@ class DownloadManager:
                 self._cleanup_partials(job.output_dir, base)
                 continue
 
-        if bot_detection_hit and not self.cookies_file:
+        if bot_detection_hit and uses_youtube and not self.cookies_file:
             raise RuntimeError(
                 "YouTube verlangt Login-Cookies (Bot-Detection). Lege eine "
                 "Netscape-Cookie-Datei an und setze die Env-Var "
-                "YTDLP_COOKIES_FILE (siehe README)."
+                "YTDLP_COOKIES_FILE (siehe README). Oder nutze nur SoundCloud "
+                "(Standard: AUDIO_SOURCES=soundcloud)."
             )
         raise RuntimeError(" | ".join(errors) or "yt-dlp: unbekannter Fehler")
 
