@@ -23,18 +23,30 @@ Serviert über FastAPI mit einer modernen, dunklen Oberfläche; Audio kommt per
 
 ## Schnellstart mit Docker Compose
 
+**Keine `.env` Datei nötig** — `docker-compose.yml` setzt Defaults und leere
+optionale Variablen. Im Projektroot:
+
 ```bash
-cp .env.example .env
-# SPOTIFY_CLIENT_ID + SPOTIFY_CLIENT_SECRET eintragen (siehe unten)
 docker compose up -d --build
-# UI öffnen: http://localhost:8000
+# UI: http://localhost:8000
 ```
 
-Heruntergeladene Dateien landen im gemounteten Volume `./downloads`.
+Downloads liegen unter `./downloads` (Ordner wird beim ersten Start angelegt).
 
-> **Wichtig:** Ohne eigene Spotify-API-Credentials schlägt der Abruf der
-> Metadaten fehl oder wird stark limitiert. Das Setup ist kostenlos – siehe
-> nächster Abschnitt.
+Spotify-Keys für echte Downloads (einmalig), z. B. in der Shell:
+
+```bash
+export SPOTIFY_CLIENT_ID=…
+export SPOTIFY_CLIENT_SECRET=…
+docker compose up -d
+```
+
+Oder dauerhaft in `docker-compose.yml` unter `environment:` eintragen
+(nicht committen). Optional: `.env.example` nach `.env` kopieren — reine
+Bequemlichkeit, Compose lädt `.env` automatisch **nur wenn die Datei existiert**.
+
+> **Wichtig:** Ohne Spotify-API-Credentials startet die App, aber Metadaten-
+> Abruf/Downloads schlagen fehl — siehe nächster Abschnitt.
 
 ## Spotify API Credentials (empfohlen)
 
@@ -84,19 +96,11 @@ im Netscape-Format exportieren und in den Container mounten.
    - Firefox: *cookies.txt*
 2. Auf <https://www.youtube.com> eingeloggt sein → Extension öffnen →
    *Export as Netscape* → als `cookies.txt` ins Projektverzeichnis legen.
-3. In `docker-compose.yml` die auskommentierte Volume-Zeile aktivieren:
+3. In `docker-compose.yml` die optionalen Zeilen für `cookies.txt` aktivieren
+   und `YTDLP_COOKIES_FILE=/etc/cookies.txt` setzen (Shell, `environment:` in
+   der Compose-Datei, oder optional eine `.env`-Datei).
 
-   ```yaml
-   - ./cookies.txt:/etc/cookies.txt:ro
-   ```
-
-4. In `.env` setzen:
-
-   ```dotenv
-   YTDLP_COOKIES_FILE=/etc/cookies.txt
-   ```
-
-5. `docker compose up -d` neu starten.
+4. `docker compose up -d` neu starten.
 
 > Die Cookies werden **nur lokal** im Container verwendet und nie nach außen
 > versendet. Lege `cookies.txt` nicht in öffentliche Git-Repos!

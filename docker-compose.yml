@@ -1,3 +1,8 @@
+# Keine .env nötig: alle Werte haben Defaults oder leere Optional-Variablen.
+# Spotify + Cookies bei Bedarf setzen, z. B.:
+#   SPOTIFY_CLIENT_ID=... SPOTIFY_CLIENT_SECRET=... docker compose up -d
+# Oder hier unter environment: eintragen (nicht committen, wenn geheim).
+
 services:
   spotify-downloader:
     build: .
@@ -7,18 +12,22 @@ services:
     ports:
       - "8000:8000"
     environment:
-      AUDIO_FORMAT: mp3
-      LOG_LEVEL: INFO
+      PORT: "8000"
+      DOWNLOAD_DIR: /data/downloads
+      AUDIO_FORMAT: ${AUDIO_FORMAT:-mp3}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Ohne Werte startet die UI trotzdem; Downloads brauchen Spotify-API-Keys.
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+      # Nur wenn du youtube in AUDIO_SOURCES nutzt und eine Cookie-Datei mountest:
       YTDLP_COOKIES_FILE: ${YTDLP_COOKIES_FILE:-}
-      # soundcloud (Standard, kein YouTube) | soundcloud,youtube für Fallback
       AUDIO_SOURCES: ${AUDIO_SOURCES:-soundcloud}
     volumes:
+      # Wird beim ersten Start als Ordner angelegt — keine .env nötig.
       - ./downloads:/data/downloads
-      # Optional: YouTube-Cookies für yt-dlp, falls Bot-Detection zuschlaegt.
-      # cookies.txt via "Get cookies.txt LOCALLY" Browser-Extension exportieren.
-      - ./cookies.txt:/etc/cookies.txt
+      # Optional (YouTube in AUDIO_SOURCES): cookies.txt anlegen, Zeile aktivieren,
+      # dann z. B. YTDLP_COOKIES_FILE=/etc/cookies.txt setzen.
+      # - ./cookies.txt:/etc/cookies.txt:ro
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
       interval: 30s
