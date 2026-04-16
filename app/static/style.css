@@ -1,0 +1,431 @@
+:root {
+    --bg: #0f1115;
+    --bg-elevated: #181b22;
+    --bg-card: #1e2129;
+    --border: #2a2e38;
+    --text: #e6e8ee;
+    --text-muted: #9aa3b2;
+    --accent: #1db954;
+    --accent-hover: #1ed760;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+    --info: #3b82f6;
+    --radius: 12px;
+    --shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 20% 0%, #1a2730 0%, var(--bg) 60%);
+    color: var(--text);
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.hero {
+    padding: 3rem 1.5rem 2rem;
+    text-align: center;
+}
+
+.hero-inner {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.logo h1 {
+    font-size: 2rem;
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.tagline {
+    color: var(--text-muted);
+    font-size: 1rem;
+    margin: 0;
+}
+
+main {
+    flex: 1;
+    width: 100%;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+}
+
+.card h2 {
+    margin: 0 0 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.card-head h2 {
+    margin: 0;
+}
+
+label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.input-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+input[type="url"] {
+    flex: 1;
+    min-width: 240px;
+    padding: 0.75rem 1rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 1rem;
+    transition: border-color 0.15s ease;
+}
+
+input[type="url"]:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    font-size: 1rem;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+}
+
+button[type="submit"] {
+    padding: 0.75rem 1.5rem;
+    background: var(--accent);
+    color: #000;
+    font-weight: 600;
+}
+
+button[type="submit"]:hover:not(:disabled) {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+}
+
+button[type="submit"]:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+button.ghost {
+    background: transparent;
+    color: var(--text-muted);
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--border);
+    font-size: 0.85rem;
+}
+
+button.ghost:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+
+.hint {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin: 0.5rem 0 0;
+}
+
+.alert {
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.alert-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fecaca;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.jobs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.empty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2rem 1rem;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.job {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.job-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.job-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.job-url {
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.job-url:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.job[data-status="queued"] .status-dot {
+    background: var(--text-muted);
+}
+.job[data-status="running"] .status-dot {
+    background: var(--info);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    animation: pulse 1.5s ease-out infinite;
+}
+.job[data-status="completed"] .status-dot {
+    background: var(--accent);
+}
+.job[data-status="failed"] .status-dot {
+    background: var(--danger);
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+.job-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.status-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.job[data-status="running"] .status-label { color: var(--info); }
+.job[data-status="completed"] .status-label { color: var(--accent); }
+.job[data-status="failed"] .status-label { color: var(--danger); }
+
+.delete-btn {
+    background: transparent;
+    color: var(--text-muted);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+}
+
+.job-message {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    word-break: break-word;
+}
+
+.job-progress {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    display: none;
+}
+
+.job[data-status="running"] .job-progress {
+    display: block;
+}
+
+.job-progress .bar {
+    width: 30%;
+    height: 100%;
+    background: var(--info);
+    animation: indeterminate 1.8s ease-in-out infinite;
+}
+
+@keyframes indeterminate {
+    0% { margin-left: -30%; }
+    100% { margin-left: 100%; }
+}
+
+.job-log {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.job-log summary {
+    cursor: pointer;
+    user-select: none;
+    padding: 0.25rem 0;
+}
+
+.job-log pre {
+    margin: 0.5rem 0 0;
+    padding: 0.75rem;
+    background: #0a0c10;
+    border-radius: 6px;
+    max-height: 220px;
+    overflow: auto;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.job-files {
+    display: none;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+}
+
+.job[data-status="completed"] .job-files {
+    display: flex;
+}
+
+.file-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: all 0.15s ease;
+}
+
+.file-link:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.file-link.primary {
+    background: rgba(29, 185, 84, 0.12);
+    border-color: rgba(29, 185, 84, 0.4);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.file-link .icon {
+    font-size: 1rem;
+}
+
+footer {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+footer a {
+    color: var(--text-muted);
+}
+
+footer a:hover {
+    color: var(--accent);
+}
+
+@media (max-width: 520px) {
+    .hero { padding: 2rem 1rem 1.5rem; }
+    .logo h1 { font-size: 1.5rem; }
+    main { padding: 0 1rem 2rem; }
+    .card { padding: 1rem; }
+    button[type="submit"] { width: 100%; }
+    input[type="url"] { min-width: 100%; }
+}

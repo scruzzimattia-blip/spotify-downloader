@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spotify Downloader</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>&#127925;</text></svg>" />
+</head>
+<body>
+    <header class="hero">
+        <div class="hero-inner">
+            <div class="logo">
+                <svg viewBox="0 0 24 24" width="36" height="36" aria-hidden="true">
+                    <circle cx="12" cy="12" r="11" fill="#1db954" />
+                    <path d="M7 15.5c2.5-1.5 6-1.8 9 0" stroke="#000" stroke-width="1.6" stroke-linecap="round" fill="none" />
+                    <path d="M6.5 12.5c3-2 7.5-2.3 11 0" stroke="#000" stroke-width="1.6" stroke-linecap="round" fill="none" />
+                    <path d="M6 9.5c3.5-2.3 9-2.5 13 0" stroke="#000" stroke-width="1.6" stroke-linecap="round" fill="none" />
+                </svg>
+                <h1>Spotify Downloader</h1>
+            </div>
+            <p class="tagline">Tracks, Alben und Playlists als <strong>{{ audio_format|upper }}</strong> herunterladen.</p>
+        </div>
+    </header>
+
+    <main>
+        <section class="card">
+            <h2>Neuer Download</h2>
+            <form id="download-form" autocomplete="off">
+                <label for="url">Spotify URL</label>
+                <div class="input-row">
+                    <input
+                        type="url"
+                        id="url"
+                        name="url"
+                        placeholder="https://open.spotify.com/playlist/…"
+                        required
+                        autofocus
+                    />
+                    <button type="submit" id="submit-btn">
+                        <span class="label">Herunterladen</span>
+                    </button>
+                </div>
+                <p class="hint">Unterstützt werden Track-, Album-, Playlist- und Artist-Links.</p>
+                <div id="form-error" class="alert alert-error hidden"></div>
+            </form>
+        </section>
+
+        <section class="card">
+            <div class="card-head">
+                <h2>Downloads</h2>
+                <button id="refresh-btn" class="ghost" type="button" title="Neu laden">
+                    &#x21bb; Aktualisieren
+                </button>
+            </div>
+            <div id="jobs" class="jobs">
+                <p class="empty" id="empty-state">Noch keine Downloads gestartet.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Angetrieben von <a href="https://spotdl.readthedocs.io" target="_blank" rel="noreferrer">spotdl</a> &middot; FastAPI</p>
+    </footer>
+
+    <template id="job-template">
+        <article class="job" data-id="">
+            <header class="job-head">
+                <div class="job-title">
+                    <span class="status-dot"></span>
+                    <a class="job-url" href="#" target="_blank" rel="noreferrer"></a>
+                </div>
+                <div class="job-actions">
+                    <span class="status-label"></span>
+                    <button class="delete-btn" type="button" title="Löschen">&times;</button>
+                </div>
+            </header>
+            <p class="job-message"></p>
+            <div class="job-progress"><div class="bar"></div></div>
+            <details class="job-log">
+                <summary>Log anzeigen</summary>
+                <pre></pre>
+            </details>
+            <div class="job-files"></div>
+        </article>
+    </template>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
