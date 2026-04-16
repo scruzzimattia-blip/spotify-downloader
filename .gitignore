@@ -33,3 +33,5 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+
+www.youtube.com_cookies.txt
