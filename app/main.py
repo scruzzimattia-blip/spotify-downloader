@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
@@ -79,11 +79,12 @@ async def get_download(job_id: str) -> dict:
     return job.to_dict()
 
 
-@app.delete("/api/downloads/{job_id}", status_code=204)
-async def delete_download(job_id: str) -> None:
+@app.delete("/api/downloads/{job_id}", status_code=204, response_class=Response)
+async def delete_download(job_id: str) -> Response:
     removed = await manager.delete_job(job_id)
     if not removed:
         raise HTTPException(status_code=404, detail="Job nicht gefunden")
+    return Response(status_code=204)
 
 
 @app.get("/api/downloads/{job_id}/files/{filename}")
