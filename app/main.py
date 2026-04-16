@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from .downloader import DownloadManager, is_valid_spotify_url
+from .downloader import SUPPORTED_FORMATS, DownloadManager, is_valid_spotify_url
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO").upper(),
@@ -20,7 +20,20 @@ logging.basicConfig(
 
 BASE_DIR = Path(__file__).resolve().parent
 DOWNLOAD_DIR = Path(os.environ.get("DOWNLOAD_DIR", BASE_DIR.parent / "downloads"))
-AUDIO_FORMAT = os.environ.get("AUDIO_FORMAT", "mp3")
+AUDIO_FORMAT = os.environ.get("AUDIO_FORMAT", "mp3").lower()
+if AUDIO_FORMAT not in SUPPORTED_FORMATS:
+    AUDIO_FORMAT = "mp3"
+SPOTIFY_CLIENT_ID = (
+    os.environ.get("SPOTIFY_CLIENT_ID")
+    or os.environ.get("SPOTIPY_CLIENT_ID")
+    or ""
+).strip()
+SPOTIFY_CLIENT_SECRET = (
+    os.environ.get("SPOTIFY_CLIENT_SECRET")
+    or os.environ.get("SPOTIPY_CLIENT_SECRET")
+    or ""
+).strip()
+YTDLP_COOKIES_FILE = os.environ.get("YTDLP_COOKIES_FILE", "").strip() or None
 
 app = FastAPI(
     title="Spotify Downloader",
@@ -35,24 +48,48 @@ app.mount(
 )
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
-manager = DownloadManager(base_dir=DOWNLOAD_DIR, audio_format=AUDIO_FORMAT)
+manager = DownloadManager(
+    base_dir=DOWNLOAD_DIR,
+    default_audio_format=AUDIO_FORMAT,
+    client_id=SPOTIFY_CLIENT_ID,
+    client_secret=SPOTIFY_CLIENT_SECRET,
+    cookies_file=YTDLP_COOKIES_FILE,
+)
 
 
 class DownloadRequest(BaseModel):
-    url: str = Field(..., min_length=10, description="Spotify Track-, Album- oder Playlist-URL")
+    url: str = Field(..., min_length=10, description="Spotify Track-, Album-, Artist- oder Playlist-URL")
+    audio_format: str | None = Field(
+        default=None,
+        description="Zielformat: " + ", ".join(SUPPORTED_FORMATS),
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "audio_format": AUDIO_FORMAT},
+        {
+            "request": request,
+            "audio_format": AUDIO_FORMAT,
+            "supported_formats": list(SUPPORTED_FORMATS),
+            "has_credentials": manager.has_custom_credentials,
+        },
     )
 
 
 @app.get("/api/health")
 async def health() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/api/config")
+async def config() -> dict:
+    return {
+        "audio_format": AUDIO_FORMAT,
+        "supported_formats": list(SUPPORTED_FORMATS),
+        "has_credentials": manager.has_custom_credentials,
+    }
 
 
 @app.post("/api/downloads", status_code=201)
@@ -62,7 +99,17 @@ async def create_download(payload: DownloadRequest) -> JSONResponse:
             status_code=400,
             detail="Ungültige Spotify-URL. Erlaubt sind Track-, Album-, Artist- und Playlist-Links.",
         )
-    job = await manager.create_job(payload.url)
+    fmt = (payload.audio_format or AUDIO_FORMAT).lower()
+    if fmt not in SUPPORTED_FORMATS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Format '{fmt}' wird nicht unterstützt. Erlaubt: "
+            + ", ".join(SUPPORTED_FORMATS),
+        )
+    try:
+        job = await manager.create_job(payload.url, audio_format=fmt)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return JSONResponse(job.to_dict(), status_code=201)
 
 
