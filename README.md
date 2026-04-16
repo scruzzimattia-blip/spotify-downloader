@@ -158,11 +158,41 @@ Benötigte Einstellungen im Gitea-Repo:
 1. **Actions aktivieren:** Repository-Settings → *Enable Repository Actions*.
 2. **Runner registrieren:** Mindestens ein Gitea Actions Runner mit Docker
    muss gegen das Repo/den Owner registriert sein.
-3. **Packages-Berechtigung:** Das Repo-Token (`GITEA_TOKEN`) braucht
-   `write:package`-Rechte. Alternativ kann ein eigener Token als Secret
-   `REGISTRY_TOKEN` hinterlegt werden.
-4. **Registry-Host (optional):** Als Repository-Variable `REGISTRY` kann ein
-   abweichender Host gesetzt werden (Default: `git.scruzzi.com`).
+3. **Registry-Login (wichtig):** Wenn der Schritt *Log in to Gitea Container
+   Registry* mit `Get "https://…/v2/": unauthorized` abbricht, liegt es fast
+   immer am Token — **nicht** am Workflow.
+
+   Der automatische `GITEA_TOKEN` aus dem Workflow hat auf vielen Gitea-Versionen
+   **keine** `write:package`-Berechtigung. Dann lehnt die Registry jeden Push ab.
+
+   **Empfohlen:** eigenen Personal Access Token anlegen und als Repo-Secret
+   speichern:
+
+   - Gitea → Profil-Avatar → **Settings** → **Applications** →
+     **Generate New Token**
+   - Scopes mindestens: **`read:package`** und **`write:package`**
+   - Optional zusätzlich: `read:user` (hilft bei manchen Setups)
+   - Im Repo: **Settings** → **Secrets** → Secret **`REGISTRY_TOKEN`**
+     mit dem Token-Wert anlegen
+
+   Optional: Secret **`REGISTRY_USERNAME`** auf deinen exakten Gitea-Login setzen,
+   falls dieser von `github.actor` abweicht (Groß-/Kleinschreibung).
+
+4. **Registry-Host (optional):** Als Repository-Variable `REGISTRY` nur den
+   Hostnamen setzen (z. B. `git.scruzzi.com`), **ohne** `https://` und ohne
+   Slash am Ende.
+
+5. **Image-Name:** Docker verlangt Kleinbuchstaben. Der Workflow wandelt
+   `owner/repo` automatisch in Kleinbuchstaben um (z. B. `mattia/spotify-downloader`).
+
+### Manuell testen (vom Rechner mit Docker)
+
+```bash
+docker login git.scruzzi.com -u DEIN_GITEA_USER -p 'DEIN_PAT_MIT_write_package'
+```
+
+Wenn das lokal scheitert, muss zuerst der Token oder die Server-Konfiguration
+(Packages/Registry aktiviert?) gefixt werden — nicht der Workflow.
 
 Erzeugte Tags:
 
