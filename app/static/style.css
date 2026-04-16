@@ -130,6 +130,24 @@ input[type="url"]:focus {
     border-color: var(--accent);
 }
 
+.format-select {
+    padding: 0.75rem 0.85rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 1rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+    min-width: 80px;
+}
+
+.format-select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
 button {
     cursor: pointer;
     border: none;
@@ -186,6 +204,27 @@ button.ghost:hover {
     background: rgba(239, 68, 68, 0.1);
     border: 1px solid rgba(239, 68, 68, 0.3);
     color: #fecaca;
+}
+
+.alert-warn {
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: #fde68a;
+    padding: 0.9rem 1.1rem;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+.alert-warn a {
+    color: #fcd34d;
+}
+
+.alert-warn code {
+    background: rgba(0, 0, 0, 0.35);
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    font-size: 0.85em;
 }
 
 .hidden {
@@ -318,27 +357,104 @@ button.ghost:hover {
 }
 
 .job-progress {
-    height: 3px;
+    height: 4px;
     background: var(--border);
     border-radius: 2px;
     overflow: hidden;
     display: none;
+    position: relative;
 }
 
-.job[data-status="running"] .job-progress {
+.job[data-status="running"] .job-progress,
+.job[data-status="completed"][data-has-progress="true"] .job-progress {
     display: block;
 }
 
 .job-progress .bar {
-    width: 30%;
     height: 100%;
     background: var(--info);
+    transition: width 0.4s ease;
+}
+
+.job[data-status="completed"] .job-progress .bar {
+    background: var(--accent);
+}
+
+.job[data-status="running"][data-has-progress="false"] .job-progress .bar {
+    width: 30% !important;
     animation: indeterminate 1.8s ease-in-out infinite;
 }
 
 @keyframes indeterminate {
     0% { margin-left: -30%; }
     100% { margin-left: 100%; }
+}
+
+.job-progress-text {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: none;
+}
+
+.job[data-has-progress="true"] .job-progress-text {
+    display: block;
+}
+
+.format-badge {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.job-tracks summary,
+.job-log summary {
+    cursor: pointer;
+    user-select: none;
+    padding: 0.25rem 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.track-list {
+    margin: 0.5rem 0 0;
+    padding-left: 1.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    max-height: 220px;
+    overflow: auto;
+}
+
+.track-list li {
+    padding: 0.15rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.track-list li .track-status {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.track-list li[data-status="downloading"] .track-status {
+    background: var(--info);
+    animation: pulse 1.5s ease-out infinite;
+}
+.track-list li[data-status="done"] .track-status { background: var(--accent); }
+.track-list li[data-status="failed"] .track-status { background: var(--danger); }
+
+.track-list li.failed {
+    color: #fca5a5;
 }
 
 .job-log {

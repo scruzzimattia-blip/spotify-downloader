@@ -3,6 +3,7 @@
 
     const form = document.getElementById("download-form");
     const urlInput = document.getElementById("url");
+    const formatSelect = document.getElementById("format");
     const submitBtn = document.getElementById("submit-btn");
     const refreshBtn = document.getElementById("refresh-btn");
     const jobsContainer = document.getElementById("jobs");
@@ -46,6 +47,25 @@
         return res.json();
     }
 
+    function renderTracks(job, listEl) {
+        listEl.innerHTML = "";
+        for (const track of job.tracks || []) {
+            const li = document.createElement("li");
+            li.dataset.status = track.status;
+            if (track.status === "failed") li.classList.add("failed");
+            const dot = document.createElement("span");
+            dot.className = "track-status";
+            li.appendChild(dot);
+            const text = document.createElement("span");
+            const label = `${track.artist || "?"} — ${track.title || "?"}`;
+            text.textContent = track.error
+                ? `${label} (${track.error})`
+                : label;
+            li.appendChild(text);
+            listEl.appendChild(li);
+        }
+    }
+
     function updateJobCard(job) {
         let card = renderedJobs.get(job.id);
         if (!card) {
@@ -62,12 +82,37 @@
         const urlLink = card.querySelector(".job-url");
         urlLink.href = job.url;
         urlLink.textContent = job.url;
+        card.querySelector(".format-badge").textContent = (
+            job.audio_format || ""
+        ).toUpperCase();
         card.querySelector(".status-label").textContent =
             STATUS_LABELS[job.status] || job.status;
         card.querySelector(".job-message").textContent = job.message || "";
 
+        const hasProgress = !!(job.total && job.total > 0);
+        card.dataset.hasProgress = hasProgress ? "true" : "false";
+        const bar = card.querySelector(".job-progress .bar");
+        const progressText = card.querySelector(".job-progress-text");
+        if (hasProgress) {
+            const pct = Math.round((job.done / job.total) * 100);
+            bar.style.width = pct + "%";
+            progressText.textContent = `${job.done} / ${job.total} Track(s) • ${pct}%`;
+        } else {
+            bar.style.width = "";
+            progressText.textContent = "";
+        }
+
         const logPre = card.querySelector(".job-log pre");
         logPre.textContent = (job.log || []).join("\n");
+
+        const tracksDetails = card.querySelector(".job-tracks");
+        const trackList = card.querySelector(".track-list");
+        if (job.tracks && job.tracks.length) {
+            tracksDetails.style.display = "";
+            renderTracks(job, trackList);
+        } else {
+            tracksDetails.style.display = "none";
+        }
 
         const filesContainer = card.querySelector(".job-files");
         filesContainer.innerHTML = "";
@@ -137,6 +182,8 @@
         const url = urlInput.value.trim();
         if (!url) return;
 
+        const audio_format = formatSelect ? formatSelect.value : undefined;
+
         submitBtn.disabled = true;
         const labelEl = submitBtn.querySelector(".label");
         const prevLabel = labelEl.textContent;
@@ -145,7 +192,7 @@
         try {
             const job = await apiFetch("/api/downloads", {
                 method: "POST",
-                body: JSON.stringify({ url }),
+                body: JSON.stringify({ url, audio_format }),
             });
             updateJobCard(job);
             updateEmptyState();

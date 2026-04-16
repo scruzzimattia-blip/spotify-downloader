@@ -24,6 +24,17 @@
     </header>
 
     <main>
+        {% if not has_credentials %}
+        <div class="alert alert-warn" role="status">
+            <strong>Hinweis:</strong> Es sind keine eigenen Spotify-API-Credentials konfiguriert.
+            Die öffentlichen spotdl-Credentials werden häufig ratelimited
+            (<em>"rate/request limit"</em>). Lege unter
+            <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">developer.spotify.com/dashboard</a>
+            eine App an und setze <code>SPOTIFY_CLIENT_ID</code> und <code>SPOTIFY_CLIENT_SECRET</code>
+            als Umgebungsvariablen.
+        </div>
+        {% endif %}
+
         <section class="card">
             <h2>Neuer Download</h2>
             <form id="download-form" autocomplete="off">
@@ -37,11 +48,16 @@
                         required
                         autofocus
                     />
+                    <select id="format" name="format" class="format-select" title="Audio-Format">
+                        {% for fmt in supported_formats %}
+                        <option value="{{ fmt }}" {% if fmt == audio_format %}selected{% endif %}>{{ fmt|upper }}</option>
+                        {% endfor %}
+                    </select>
                     <button type="submit" id="submit-btn">
                         <span class="label">Herunterladen</span>
                     </button>
                 </div>
-                <p class="hint">Unterstützt werden Track-, Album-, Playlist- und Artist-Links.</p>
+                <p class="hint">Spotify liefert die Metadaten, yt-dlp lädt die Tracks von YouTube.</p>
                 <div id="form-error" class="alert alert-error hidden"></div>
             </form>
         </section>
@@ -71,12 +87,20 @@
                     <a class="job-url" href="#" target="_blank" rel="noreferrer"></a>
                 </div>
                 <div class="job-actions">
+                    <span class="format-badge"></span>
                     <span class="status-label"></span>
                     <button class="delete-btn" type="button" title="Löschen">&times;</button>
                 </div>
             </header>
             <p class="job-message"></p>
-            <div class="job-progress"><div class="bar"></div></div>
+            <div class="job-progress">
+                <div class="bar"></div>
+            </div>
+            <p class="job-progress-text"></p>
+            <details class="job-tracks">
+                <summary>Tracks anzeigen</summary>
+                <ol class="track-list"></ol>
+            </details>
             <details class="job-log">
                 <summary>Log anzeigen</summary>
                 <pre></pre>
