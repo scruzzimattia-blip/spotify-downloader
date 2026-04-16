@@ -9,6 +9,7 @@ in die Datei getaggt.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 import shutil
@@ -18,7 +19,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional
 
 import requests
 import spotipy
@@ -50,6 +51,7 @@ class TrackRef:
     album: str = ""
     duration_ms: int = 0
     cover_url: Optional[str] = None
+    spotify_uri: Optional[str] = None
     status: str = "pending"  # pending | downloading | done | failed
     filename: Optional[str] = None
     error: Optional[str] = None
@@ -134,7 +136,23 @@ def sanitize_filename(name: str) -> str:
 
 
 class SpotifyFetcher:
-    """Zieht Track-Metadaten aus der offiziellen Spotify-Web-API."""
+    """Zieht Track-Metadaten aus Spotify.
+
+    Primär über die offizielle Web-API (Client-Credentials-Flow). Wenn die
+    API Zugriff verweigert (z. B. 403 auf `/playlists/{id}/tracks` durch den
+    seit Ende 2024 verschärften Spotify Developer Lockdown oder durch
+    Content-Moderation), greift automatisch ein Fallback auf die öffentliche
+    Embed-Seite `open.spotify.com/embed/...`. Letztere liefert zwar weniger
+    Felder, reicht aber für Titel, Artist und Cover.
+    """
+
+    _EMBED_UA = (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+    )
+    _NEXT_DATA_RE = re.compile(
+        r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.DOTALL
+    )
 
     def __init__(self, client_id: str, client_secret: str) -> None:
         self.sp = spotipy.Spotify(
@@ -145,6 +163,13 @@ class SpotifyFetcher:
             requests_timeout=20,
             retries=3,
         )
+        self._http = requests.Session()
+        self._http.headers.update({
+            "User-Agent": self._EMBED_UA,
+            "Accept-Language": "en-US,en;q=0.9",
+        })
+
+    # ---- Public entry -------------------------------------------------
 
     def fetch(self, url: str) -> list[TrackRef]:
         parsed = parse_spotify_url(url)
@@ -152,6 +177,32 @@ class SpotifyFetcher:
             raise ValueError("Ungültige Spotify-URL")
         kind, sp_id = parsed
 
+        try:
+            tracks = self._fetch_via_api(kind, sp_id)
+            logger.info("Spotify API lieferte %d Track(s) für %s/%s",
+                        len(tracks), kind, sp_id)
+            return tracks
+        except spotipy.SpotifyException as exc:
+            if exc.http_status not in (401, 403, 404):
+                raise
+            logger.warning(
+                "Spotify API %s für %s/%s – versuche Embed-Fallback",
+                exc.http_status, kind, sp_id,
+            )
+        except RuntimeError:
+            raise
+
+        tracks = self._fetch_via_embed(kind, sp_id)
+        if tracks:
+            try:
+                self._enrich_via_api(tracks)
+            except Exception:  # noqa: BLE001
+                logger.info("Track-Anreicherung via API übersprungen", exc_info=True)
+        return tracks
+
+    # ---- API path -----------------------------------------------------
+
+    def _fetch_via_api(self, kind: str, sp_id: str) -> list[TrackRef]:
         if kind == "track":
             return [self._from_track(self.sp.track(sp_id))]
 
@@ -169,6 +220,7 @@ class SpotifyFetcher:
                     album=album_name,
                     duration_ms=item.get("duration_ms") or 0,
                     cover_url=cover,
+                    spotify_uri=item.get("uri"),
                 ))
             return out
 
@@ -188,6 +240,106 @@ class SpotifyFetcher:
 
         raise ValueError(f"Unbekannter URL-Typ: {kind}")
 
+    # ---- Embed fallback ----------------------------------------------
+
+    def _fetch_via_embed(self, kind: str, sp_id: str) -> list[TrackRef]:
+        if kind == "artist":
+            raise RuntimeError(
+                "Artist-URLs können ohne funktionierenden Spotify-API-Zugriff "
+                "nicht geladen werden. Nutze stattdessen einen konkreten "
+                "Album- oder Playlist-Link."
+            )
+
+        embed_url = f"https://open.spotify.com/embed/{kind}/{sp_id}"
+        resp = self._http.get(embed_url, timeout=20)
+        if resp.status_code == 404:
+            raise RuntimeError(
+                "Spotify-Ressource nicht gefunden (weder per API noch per "
+                "Embed-Seite)."
+            )
+        resp.raise_for_status()
+
+        match = self._NEXT_DATA_RE.search(resp.text)
+        if not match:
+            raise RuntimeError("Embed-Seite konnte nicht geparsed werden")
+        try:
+            data = json.loads(match.group(1))
+            entity = data["props"]["pageProps"]["state"]["data"]["entity"]
+        except (KeyError, ValueError) as exc:
+            raise RuntimeError(
+                "Unerwartete Struktur auf der Spotify-Embed-Seite"
+            ) from exc
+
+        cover = self._pick_embed_cover(entity.get("visualIdentity"))
+
+        if kind == "track":
+            title = entity.get("name") or entity.get("title") or ""
+            return [TrackRef(
+                title=title,
+                artist="",
+                album="",
+                duration_ms=int(entity.get("duration") or 0),
+                cover_url=cover,
+                spotify_uri=entity.get("uri") or f"spotify:track:{sp_id}",
+            )]
+
+        album_name = entity.get("name") or "" if kind == "album" else ""
+        tracks: list[TrackRef] = []
+        for item in entity.get("trackList") or []:
+            title = item.get("title") or ""
+            if not title:
+                continue
+            artist = (item.get("subtitle") or "").replace("\u00a0", " ").strip(" ,")
+            tracks.append(TrackRef(
+                title=title,
+                artist=artist,
+                album=album_name,
+                duration_ms=int(item.get("duration") or 0),
+                cover_url=cover,
+                spotify_uri=item.get("uri"),
+            ))
+        return tracks
+
+    # ---- Enrichment ---------------------------------------------------
+
+    def _enrich_via_api(self, tracks: list[TrackRef]) -> None:
+        """Holt Album/Artist/Cover für Tracks batchweise nach.
+
+        Verwendet den `/v1/tracks` Batch-Endpoint, der im Gegensatz zu
+        `/v1/playlists/.../tracks` von Spotifys Lockdown bisher nicht
+        betroffen ist. Fehlt eine URI, wird der Track übersprungen.
+        """
+        by_id: dict[str, TrackRef] = {}
+        for t in tracks:
+            if t.spotify_uri and t.spotify_uri.startswith("spotify:track:"):
+                by_id.setdefault(t.spotify_uri.split(":")[-1], t)
+        if not by_id:
+            return
+
+        for batch in _chunks(list(by_id.keys()), 50):
+            try:
+                res = self.sp.tracks(batch)
+            except spotipy.SpotifyException as exc:
+                logger.info("Batch-Enrichment fehlgeschlagen (%s): %s",
+                            exc.http_status, exc.msg)
+                continue
+            for td in (res or {}).get("tracks", []) or []:
+                if not td:
+                    continue
+                ref = by_id.get(td.get("id") or "")
+                if not ref:
+                    continue
+                album = td.get("album") or {}
+                artists = ", ".join(a["name"] for a in td.get("artists", []))
+                if artists:
+                    ref.artist = artists
+                if album.get("name") and not ref.album:
+                    ref.album = album["name"]
+                if not ref.cover_url:
+                    ref.cover_url = self._pick_cover(album.get("images"))
+
+    # ---- Helpers ------------------------------------------------------
+
     def _paginate(self, page):
         while page:
             for item in page.get("items", []):
@@ -200,6 +352,15 @@ class SpotifyFetcher:
             return None
         return max(images, key=lambda i: i.get("width") or 0).get("url")
 
+    @staticmethod
+    def _pick_embed_cover(visual_identity: Optional[dict]) -> Optional[str]:
+        if not visual_identity:
+            return None
+        images = visual_identity.get("image") or visual_identity.get("images") or []
+        if not images:
+            return None
+        return max(images, key=lambda i: i.get("maxHeight") or 0).get("url")
+
     @classmethod
     def _from_track(cls, track: dict) -> TrackRef:
         album = track.get("album") or {}
@@ -209,7 +370,13 @@ class SpotifyFetcher:
             album=album.get("name", ""),
             duration_ms=track.get("duration_ms") or 0,
             cover_url=cls._pick_cover(album.get("images")),
+            spotify_uri=track.get("uri"),
         )
+
+
+def _chunks(items: list, size: int) -> Iterable[list]:
+    for i in range(0, len(items), size):
+        yield items[i:i + size]
 
 
 class DownloadManager:
