@@ -12,7 +12,10 @@ serviert über FastAPI mit einer modernen, dunklen Oberfläche.
 
 - Modernes Dark-Theme UI (Desktop & Mobile)
 - Unterstützt Tracks, Alben, Artists und Playlists
-- Asynchrone Job-Queue mit Live-Status, Log-Ausgabe und Fortschrittsanzeige
+- **Formatwahl**: MP3, M4A, OPUS, FLAC, WAV pro Download
+- Pipeline: Spotify → Metadaten (offizielle API) → yt-dlp → ffmpeg → mutagen-Tags
+- Cover-Art wird aus Spotify in die Audiodateien embedded
+- Asynchrone Job-Queue mit Live-Status, Track-Fortschritt und Log
 - Mehrfach-Downloads werden automatisch als ZIP-Archiv gebündelt
 - REST-API für Automatisierung (`/api/downloads`)
 - Containerisiert mit `ffmpeg` als non-root-User
@@ -21,11 +24,69 @@ serviert über FastAPI mit einer modernen, dunklen Oberfläche.
 ## Schnellstart mit Docker Compose
 
 ```bash
+cp .env.example .env
+# SPOTIFY_CLIENT_ID + SPOTIFY_CLIENT_SECRET eintragen (siehe unten)
 docker compose up -d --build
 # UI öffnen: http://localhost:8000
 ```
 
 Heruntergeladene Dateien landen im gemounteten Volume `./downloads`.
+
+> **Wichtig:** Ohne eigene Spotify-API-Credentials landet spotdl in den
+> öffentlichen, geteilten Rate-Limits und quittiert schnell mit
+> `"Your application has reached a rate/request limit. Retry will occur
+> after: 86400 s"`. Das Setup dafür ist zwei Klicks und kostenlos – siehe
+> nächster Abschnitt.
+
+## Spotify API Credentials (empfohlen)
+
+1. Melde dich bei <https://developer.spotify.com/dashboard> an.
+2. **Create app** → Name/Beschreibung frei wählen.
+3. Als *Redirect URI* irgendwas wie `http://127.0.0.1:8080/` eintragen
+   (wird nicht benötigt, aber Pflichtfeld).
+4. Nach dem Speichern: **Settings** → *Client ID* kopieren, daneben
+   *View client secret* anklicken und ebenfalls kopieren.
+5. In `.env` setzen:
+
+   ```dotenv
+   SPOTIFY_CLIENT_ID=xxxxxxxxxxxxxxxx
+   SPOTIFY_CLIENT_SECRET=xxxxxxxxxxxxxxxx
+   ```
+
+6. Container neu starten: `docker compose up -d`.
+
+Solange die Werte leer sind, zeigt die UI oben ein orangenes Hinweis-Banner an.
+
+## YouTube Cookies (sehr empfohlen)
+
+YouTube blockiert zunehmend nicht-authentifizierte Zugriffe mit der Fehlermeldung
+*"Sign in to confirm you're not a bot"*. Das ist keine App-eigene Limitierung,
+sondern betrifft alle yt-dlp-basierten Tools.
+
+**Abhilfe:** exportiere deine YouTube-Cookies im Netscape-Format und mounte sie
+in den Container.
+
+1. Browser-Extension installieren:
+   - Chrome/Edge: *Get cookies.txt LOCALLY*
+   - Firefox: *cookies.txt*
+2. Auf <https://www.youtube.com> eingeloggt sein → Extension öffnen →
+   *Export as Netscape* → als `cookies.txt` ins Projektverzeichnis legen.
+3. In `docker-compose.yml` die auskommentierte Volume-Zeile aktivieren:
+
+   ```yaml
+   - ./cookies.txt:/etc/cookies.txt:ro
+   ```
+
+4. In `.env` setzen:
+
+   ```dotenv
+   YTDLP_COOKIES_FILE=/etc/cookies.txt
+   ```
+
+5. `docker compose up -d` neu starten.
+
+> Die Cookies werden **nur lokal** im Container verwendet und nie nach außen
+> versendet. Lege `cookies.txt` nicht in öffentliche Git-Repos!
 
 ## Nur Docker
 
@@ -57,12 +118,15 @@ uvicorn app.main:app --reload
 
 ## Konfiguration (Umgebungsvariablen)
 
-| Variable        | Default             | Beschreibung                              |
-|-----------------|---------------------|-------------------------------------------|
-| `PORT`          | `8000`              | HTTP-Port                                 |
-| `DOWNLOAD_DIR`  | `/data/downloads`   | Zielverzeichnis für Downloads (Container) |
-| `AUDIO_FORMAT`  | `mp3`               | `mp3`, `m4a`, `opus`, `ogg`, `flac`, `wav`|
-| `LOG_LEVEL`     | `INFO`              | Log-Level des FastAPI-Prozesses           |
+| Variable                 | Default             | Beschreibung                              |
+|--------------------------|---------------------|-------------------------------------------|
+| `PORT`                   | `8000`              | HTTP-Port                                 |
+| `DOWNLOAD_DIR`           | `/data/downloads`   | Zielverzeichnis für Downloads (Container) |
+| `AUDIO_FORMAT`           | `mp3`               | `mp3`, `m4a`, `opus`, `ogg`, `flac`, `wav`|
+| `LOG_LEVEL`              | `INFO`              | Log-Level des FastAPI-Prozesses           |
+| `SPOTIFY_CLIENT_ID`      | –                   | Eigene Spotify-App Client-ID              |
+| `SPOTIFY_CLIENT_SECRET`  | –                   | Passend zum Client-ID                     |
+| `YTDLP_COOKIES_FILE`     | –                   | Pfad zu Netscape-Cookie-Datei (YouTube)   |
 
 ## REST-API
 
