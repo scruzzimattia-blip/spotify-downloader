@@ -24,6 +24,8 @@ downloads/
 
 .env
 .env.local
+cookies.txt
+*.cookies.txt
 
 *.log
 logs/

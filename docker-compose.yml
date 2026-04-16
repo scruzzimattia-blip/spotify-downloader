@@ -9,8 +9,14 @@ services:
     environment:
       AUDIO_FORMAT: mp3
       LOG_LEVEL: INFO
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+      YTDLP_COOKIES_FILE: ${YTDLP_COOKIES_FILE:-}
     volumes:
       - ./downloads:/data/downloads
+      # Optional: YouTube-Cookies für yt-dlp, falls Bot-Detection zuschlaegt.
+      # cookies.txt via "Get cookies.txt LOCALLY" Browser-Extension exportieren.
+      # - ./cookies.txt:/etc/cookies.txt:ro
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
       interval: 30s
