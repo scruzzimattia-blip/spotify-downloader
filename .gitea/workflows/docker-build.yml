@@ -25,8 +25,9 @@ jobs:
         id: prep
         env:
           REGISTRY: ${{ env.REGISTRY }}
+        # /bin/sh (dash) auf act/Gitea: kein "set -o pipefail"
         run: |
-          set -euo pipefail
+          set -eu
           IMAGE_PREFIX="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
           echo "IMAGE_PREFIX=${IMAGE_PREFIX}" >> "${GITHUB_ENV}"
           VERSION="$(date -u +%Y%m%d)-$(echo '${{ github.sha }}' | cut -c1-7)"
@@ -59,7 +60,7 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
         run: |
-          set -euo pipefail
+          set -eu
           USERNAME='${{ secrets.REGISTRY_USERNAME || github.actor }}'
           TOKEN="${REGISTRY_TOKEN:-}"
           if [ -z "${TOKEN}" ]; then
