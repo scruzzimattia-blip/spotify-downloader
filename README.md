@@ -202,11 +202,16 @@ Benötigte Einstellungen im Gitea-Repo:
 ### Manuell testen (vom Rechner mit Docker)
 
 ```bash
-docker login git.scruzzi.com -u DEIN_GITEA_USER -p 'DEIN_PAT_MIT_write_package'
+echo 'DEIN_PAT' | docker login git.scruzzi.com -u DEIN_GITEA_USER --password-stdin
 ```
 
 Wenn das lokal scheitert, muss zuerst der Token oder die Server-Konfiguration
 (Packages/Registry aktiviert?) gefixt werden — nicht der Workflow.
+
+Der CI-Workflow loggt mit demselben Muster (`docker login … --password-stdin`).
+Ohne gesetztes Secret **`REGISTRY_TOKEN`** bricht der Job mit einer klaren
+Fehlermeldung ab (Fallback: `GITEA_TOKEN`, falls deine Gitea-Version das
+mit Package-Rechten ausliefert — oft aber nicht).
 
 Erzeugte Tags:
 
